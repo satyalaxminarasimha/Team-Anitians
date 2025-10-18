@@ -16,7 +16,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useAuth } from "@/hooks/use-auth.tsx";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { Loader2, SendHorizonal, User, BrainCircuit, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";

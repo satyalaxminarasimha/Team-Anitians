@@ -91,7 +91,7 @@ export async function saveQuizHistoryAction(quizData: QuizHistoryItem, userEmail
     // Update user stats (gamification)
     const pointsEarned = quizData.score * 10; // 10 points per correct answer
     
-    let stats = await UserStats.findOne({ userEmail });
+    let stats = await (UserStats as any).findOne({ userEmail });
     if (!stats) {
         stats = new UserStats({ userEmail });
     }
@@ -143,7 +143,7 @@ export async function getQuizHistoryAction(userEmail: string) {
     try {
         await dbConnect();
         // Find all history items for the user, sorted by most recent date.
-        const history = await QuizHistory.find({ userEmail }).sort({ date: -1 }).lean();
+    const history = await ((QuizHistory as any).find({ userEmail }).sort({ date: -1 }).lean().exec());
         
         // Convert mongoose documents to plain JavaScript objects for serialization.
         // This is crucial for passing data from Server Components/Actions to Client Components.
@@ -211,7 +211,7 @@ export async function analyzePerformanceAction(input: AnalyzePerformanceInput, h
             errorTypes: errorTypeCounts,
         };
 
-        await QuizHistory.findByIdAndUpdate(historyId, { 
+        await (QuizHistory as any).findByIdAndUpdate(historyId, { 
             $set: { 
                 performanceAnalysis,
                 'questions': updatedQuestions // This should update the errorType in the questions sub-array
@@ -221,8 +221,24 @@ export async function analyzePerformanceAction(input: AnalyzePerformanceInput, h
 
     return { success: true, data: output };
   } catch (e: any) {
-    console.error("Performance analysis error:", e);
-    return { success: false, error: e.message || "Failed to analyze performance." };
+        // Log full details server-side for debugging (status, traceId, message if present)
+        console.error("Performance analysis error:", {
+            message: e?.message,
+            status: e?.status,
+            statusText: e?.statusText,
+            errorDetails: e?.errorDetails,
+            traceId: e?.traceId,
+            stack: e?.stack,
+        });
+
+        // Return a friendly error message to the client. The client UI can show a retry option.
+        return {
+            success: false,
+            error:
+                e?.message?.includes('model is not found') || e?.status === 404
+                    ? 'The AI model required for performance analysis is unavailable in this environment. Please try again later or contact support.'
+                    : e.message || 'Failed to analyze performance.',
+        };
   }
 }
 
@@ -251,7 +267,7 @@ export async function chatWithAIAction(input: { messages: Message[] }) {
 export async function getChatHistoryAction(userEmail: string) {
     try {
         await dbConnect();
-        const history = await ChatHistory.findOne({ userEmail }).lean();
+    const history = await ((ChatHistory as any).findOne({ userEmail }).lean().exec());
         if (history) {
             return { success: true, data: history.messages };
         }
@@ -274,7 +290,7 @@ export async function getChatHistoryAction(userEmail: string) {
 export async function saveChatHistoryAction(userEmail: string, messages: Message[]) {
     try {
         await dbConnect();
-        await ChatHistory.findOneAndUpdate(
+        await (ChatHistory as any).findOneAndUpdate(
             { userEmail },
             { messages },
             { upsert: true, new: true } // upsert: create if it doesn't exist, new: return the new doc
@@ -295,7 +311,7 @@ export async function saveChatHistoryAction(userEmail: string, messages: Message
 export async function getDashboardStatsAction(userEmail: string) {
     try {
         await dbConnect();
-        const stats = await UserStats.findOne({ userEmail }).lean();
+    const stats = await ((UserStats as any).findOne({ userEmail }).lean().exec());
         const quizCount = await QuizHistory.countDocuments({ userEmail });
 
         const defaultStats = {

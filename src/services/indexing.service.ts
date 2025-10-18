@@ -5,7 +5,7 @@
  * logic for chunking text, generating embeddings, and storing them in MongoDB.
  * This would be used for features like "Ask questions about a PDF".
  */
-import { embed } from 'genkit';
+import { ai } from '@/ai/genkit';
 import dbConnect from '@/lib/db-connect';
 import PaperChunk from '@/models/paper-chunk.model';
 
@@ -36,11 +36,9 @@ function chunkText(text: string, chunkSize = 1000, overlap = 100): string[] {
 async function generateEmbeddings(chunks: string[]): Promise<number[][]> {
   const embeddings: number[][] = [];
   for (const chunk of chunks) {
-    const embedding = await embed({
-      model: 'googleai/text-embedding-004',
-      text: chunk,
-    });
-    embeddings.push(embedding);
+    const embedRes: any = await (ai as any).embed({ model: 'googleai/text-embedding-004', content: chunk });
+    const emb: number[] = embedRes?.embedding ?? embedRes?.[0]?.embedding ?? [];
+    embeddings.push(emb);
   }
   return embeddings;
 }
@@ -83,7 +81,7 @@ export async function indexPDFContent(
     embedding: embeddings[index],
   }));
 
-  await PaperChunk.insertMany(paperChunkDocuments);
+  await (PaperChunk as any).insertMany(paperChunkDocuments as any);
   console.log(`Successfully stored ${paperChunkDocuments.length} chunks for "${stream}" from "${source}".`);
 
   return { success: true, message: `Successfully indexed ${source}` };

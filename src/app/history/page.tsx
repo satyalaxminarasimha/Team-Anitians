@@ -15,7 +15,7 @@ import { Accordion } from "@/components/ui/accordion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuizHistory, type QuizHistoryItem } from "@/hooks/use-quiz-history";
 import { History as HistoryIcon, Calendar, CheckCircle, Percent, Loader2 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth.tsx";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { ResultItem } from "@/components/quiz-result-item";

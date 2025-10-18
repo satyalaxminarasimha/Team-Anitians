@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { Question, QuizConfig, UserAnswers } from '@/components/gate-ai-prep';
-import { useAuth } from './use-auth.tsx';
+import { useAuth } from './use-auth';
 import { getQuizHistoryAction, saveQuizHistoryAction } from '@/app/actions';
 import { useToast } from './use-toast';
 

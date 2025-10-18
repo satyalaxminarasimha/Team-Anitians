@@ -42,7 +42,8 @@ const ChatWithAIResponseSchema = z.object({
  * @returns {Promise<{ response: string }>} A promise that resolves to the AI's response.
  */
 export async function chatWithAI(input: { messages: Message[] }): Promise<{ response: string }> {
-  return chatWithAIFlow(input);
+  const out: any = await chatWithAIFlow(input);
+  return { response: out?.response ?? out?.text ?? 'No response from AI.' };
 }
 
 /**
@@ -76,7 +77,7 @@ export const chatWithAIFlow = ai.defineFlow(
     }
 
     // Call the Gemini model with the prompt, history, and a system prompt.
-    const response = await ai.generate({
+    const responseAny: any = await (ai as any).generate({
       model: googleAI.model('gemini-2.0-flash'),
       prompt: lastMessage.content[0].text,
       history: genkitMessages,
@@ -119,7 +120,7 @@ export const chatWithAIFlow = ai.defineFlow(
     });
 
     return {
-      response: response.text,
+      response: responseAny?.text ?? responseAny?.output ?? String(responseAny),
     };
   }
 );

@@ -84,7 +84,7 @@ export async function registerUserAction(data: unknown) {
         
         const { name, college, email } = parsed.data;
 
-        const existingUser = await User.findOne({ email });
+    const existingUser = await (User as any).findOne({ email });
         if (existingUser && existingUser.status === 'active') {
             return { success: false, message: "An account with this email already exists." };
         }
@@ -143,7 +143,7 @@ export async function verifyOtpAction(data: unknown) {
         const { email, otp, password } = parsed.data;
 
         // Find the user with 'pending' status and select the OTP fields for comparison.
-        const user = await User.findOne({ email, status: 'pending' }).select('+otp +otpExpires');
+    const user = await (User as any).findOne({ email, status: 'pending' }).select('+otp +otpExpires');
 
         if (!user) {
             return { success: false, message: "No pending registration found for this email." };
@@ -194,7 +194,7 @@ export async function loginUserAction(data: unknown) {
     try {
         await dbConnect();
         // Find an active user and select the password field for comparison.
-        const user = await User.findOne({ email: parsed.data.email, status: 'active' }).select('+password');
+    const user = await (User as any).findOne({ email: parsed.data.email, status: 'active' }).select('+password');
 
         if (!user || !user.password) {
              return { success: false, message: "Invalid email or password, or account not verified." };

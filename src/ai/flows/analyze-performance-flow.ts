@@ -30,9 +30,16 @@ export async function analyzePerformance(
  * @const {Prompt} prompt
  * @description The AI prompt that instructs the model on how to analyze the quiz results.
  */
+// Allow configuring the primary model and a comma-separated fallback list via env vars.
+const PRIMARY_MODEL = process.env.GENKIT_MODEL || process.env.GOOGLEAI_MODEL || 'gemini-2.0-flash';
+const FALLBACK_MODELS = (process.env.GENKIT_FALLBACK_MODELS || process.env.GOOGLEAI_FALLBACK_MODELS || 'gemini-2.0')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 const prompt = ai.definePrompt({
   name: 'analyzePerformancePrompt',
-  model: googleAI.model('gemini-1.0-pro'),
+  model: googleAI.model(PRIMARY_MODEL),
   input: { schema: AnalyzePerformanceInputSchema },
   output: { schema: AnalyzePerformanceOutputSchema },
   prompt: `You are an expert AI Exam Coach for a student preparing for the {{{exam}}} in the {{{stream}}} stream.
@@ -84,10 +91,61 @@ export const analyzePerformanceFlow = ai.defineFlow(
     outputSchema: AnalyzePerformanceOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    if (!output) {
-      throw new Error('The AI failed to generate a performance analysis.');
+    // Try the primary prompt first. If the selected model is unavailable, attempt configured fallbacks.
+    try {
+      const { output } = await prompt(input);
+      if (!output) {
+        throw new Error('The AI failed to generate a performance analysis.');
+      }
+      return output;
+    } catch (e: any) {
+      const msg = String(e?.message || e);
+      // If the error is model-not-found or unsupported, iterate fallbacks.
+      if (msg.includes('model is not found') || msg.includes('not found') || msg.includes('is not supported')) {
+        for (const fallbackModel of FALLBACK_MODELS) {
+          try {
+            const fallbackPrompt = ai.definePrompt({
+              name: `analyzePerformancePrompt_fallback_${fallbackModel}`,
+              model: googleAI.model(fallbackModel),
+              input: { schema: AnalyzePerformanceInputSchema },
+              output: { schema: AnalyzePerformanceOutputSchema },
+              prompt: `You are an expert AI Exam Coach for a student preparing for the {{{exam}}} in the {{{stream}}} stream.
+The user has just completed a quiz. Your task is to provide a deep, personalized analysis of their performance.
+
+User's Inferred Learning Style: {{{inferredLearningStyle}}} (Tailor your feedback accordingly.)
+
+Here are the quiz results:
+{{#each quizResults}}
+---
+Question {{number}}: {{{question}}}
+Topic: {{{topic}}}
+Difficulty: {{{difficulty}}}
+Time Taken: {{{timeTaken}}} seconds
+User's Answer: {{{userAnswer}}}
+Correct Answer: {{{correctAnswer}}}
+Result: {{#if isCorrect}}Correct{{else}}Incorrect{{/if}}
+{{/each}}
+---
+
+Provide a categorized error analysis and actionable summary based on the results.
+`,
+            });
+
+            const { output } = await fallbackPrompt(input);
+            if (!output) throw new Error(`Fallback model ${fallbackModel} failed to generate analysis.`);
+            return output;
+          } catch (fallbackErr: any) {
+            // try next fallback
+            continue;
+          }
+        }
+
+        // If none of the fallbacks worked, surface the original error with hint.
+        throw new Error(`${msg} — attempted fallbacks: ${FALLBACK_MODELS.join(', ')}`);
+      }
+
+      // Not a model-availability error — rethrow so caller handles/logs it.
+      throw e;
     }
-    return output;
   }
 );

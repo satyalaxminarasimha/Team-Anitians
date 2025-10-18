@@ -63,14 +63,16 @@ export const findRelevantPaperChunks = ai.defineTool(
     await dbConnect();
 
     // 1. Generate an embedding for the user's query
-    const { embedding: queryEmbedding } = await ai.embed({
+    // genkit typings may not match runtime; cast to any and extract embedding defensively
+    const embedResult: any = await (ai as any).embed({
       model: 'googleai/text-embedding-004',
       content: input.query,
     });
+    const queryEmbedding: number[] = embedResult?.embedding ?? embedResult?.[0]?.embedding ?? [];
 
-    // 2. Perform a vector search (similarity search) in MongoDB
-    // This pipeline first performs the vector search and then filters the results.
-    const relevantChunks = await PaperChunk.aggregate([
+      // 2. Perform a vector search (similarity search) in MongoDB
+      // This pipeline first performs the vector search and then filters the results.
+      const relevantChunks = await PaperChunk.aggregate([
       {
         $vectorSearch: {
           index: 'vector_index',
@@ -97,9 +99,9 @@ export const findRelevantPaperChunks = ai.defineTool(
           score: { $meta: 'vectorSearchScore' },
         },
       },
-    ]);
+  ]);
 
-    if (!relevantChunks || relevantChunks.length === 0) {
+  if (!relevantChunks || relevantChunks.length === 0) {
         return { chunks: [] };
     }
 
@@ -145,7 +147,8 @@ export const getPreviouslyAskedQuestions = ai.defineTool(
     async (input) => {
         await dbConnect();
         
-        const userHistory = await QuizHistory.find({ userEmail: input.userEmail });
+  // cast to any and use exec to satisfy types and return actual documents
+  const userHistory: any[] = await ((QuizHistory as any).find({ userEmail: input.userEmail }) as any).lean().exec();
         
         if (!userHistory || userHistory.length === 0) {
             return { previouslyAskedQuestions: [] };

@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from "@/hooks/use-auth.tsx";
+import { AuthProvider } from "@/hooks/use-auth";
 
 // Define the fonts used in the application.
 const inter = Inter({ 

@@ -6,7 +6,7 @@
  */
 
 import GateAiPrep from "@/components/gate-ai-prep";
-import { useAuth } from "@/hooks/use-auth.tsx";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";

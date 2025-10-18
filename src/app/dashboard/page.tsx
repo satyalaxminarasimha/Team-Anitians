@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/use-auth.tsx";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { Loader2, TrendingDown, History, BarChart, Award, Gem } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";

@@ -40,7 +40,7 @@ export async function updateUserAction(data: unknown) {
     const { email, name, college, profilePicture } = parsed.data;
 
     // Find user by email and update the specified fields.
-    const user = await User.findOneAndUpdate(
+    const user = await (User as any).findOneAndUpdate(
       { email: email },
       { $set: { name, college, profilePicture } },
       { new: true, runValidators: true } // `new: true` returns the updated document
