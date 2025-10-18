@@ -9,7 +9,7 @@
  */
 
 import { explainAnswer, ExplainAnswerInput } from "@/ai/flows/explain-answer";
-import { generateMCQQuestions, GenerateMCQQuestionsInput, GenerateMCQQuestionsOutput } from "@/ai/flows/generate-mcq-questions";
+import { generateQuizQuestions, GenerateQuizQuestionsInput, GenerateQuizQuestionsOutput } from "@/ai/flows/generate-quiz-questions";
 import { analyzePerformance } from "@/ai/flows/analyze-performance-flow";
 import dbConnect from "@/lib/db-connect";
 import QuizHistory from "@/models/quiz-history.model";
@@ -30,16 +30,27 @@ import type { AnalyzePerformanceInput, AnalyzePerformanceOutput } from "@/app/li
  * @returns {Promise<{success: boolean, data?: GenerateMCQQuestionsOutput, error?: string}>} An object indicating success or failure.
  * On success, it includes the generated quiz data. On failure, it includes an error message.
  */
-export async function generateQuizAction(input: GenerateMCQQuestionsInput) {
+export async function generateQuizAction(input: GenerateQuizQuestionsInput) {
   try {
-    // Calling the Genkit flow function directly is more robust than a network fetch.
-    const output: GenerateMCQQuestionsOutput = await generateMCQQuestions(input);
+    const output: GenerateQuizQuestionsOutput = await generateQuizQuestions(input);
     
-    if (!output || !output.mcqQuestions || output.mcqQuestions.length === 0) {
+    if (!output || !output.questions || output.questions.length === 0) {
         return { success: false, error: 'The AI failed to generate any questions. Please try modifying your syllabus topics and try again.' };
     }
 
-    return { success: true, data: output };
+    // Convert the new format to match the expected format in the frontend
+    const convertedOutput = {
+      mcqQuestions: output.questions.map(q => ({
+        question: q.question,
+        options: q.options || [],
+        correctAnswer: q.correctAnswer,
+        difficulty: q.difficulty,
+        type: q.type,
+        numericRange: q.numericRange
+      }))
+    };
+
+    return { success: true, data: convertedOutput };
 
   } catch (e: any) {
     console.error("generateQuizAction error:", e);

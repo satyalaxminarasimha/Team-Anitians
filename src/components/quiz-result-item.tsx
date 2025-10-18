@@ -25,23 +25,64 @@ import { cn } from "@/lib/utils";
  * @param {{ question: Question, userAnswer: string | undefined, index: number, quizConfig: QuizConfig | null }} props
  */
 export function ResultItem({ question, userAnswer, index, quizConfig }: { question: Question, userAnswer: string | undefined, index: number, quizConfig: QuizConfig | null}) {
-    const isCorrect = question.correctAnswer === userAnswer;
+    const isCorrect = () => {
+      switch (question.type) {
+        case 'MCQ':
+          return question.correctAnswer === userAnswer;
+
+        case 'MSQ':
+          if (Array.isArray(userAnswer) && Array.isArray(question.correctAnswer)) {
+            return (
+              userAnswer.length === question.correctAnswer.length &&
+              userAnswer.every(ans => question.correctAnswer.includes(ans)) &&
+              (question.correctAnswer as string[]).every(ans => userAnswer.includes(ans))
+            );
+          }
+          return false;
+
+        case 'NTQ':
+          if (typeof userAnswer === 'number' && typeof question.correctAnswer === 'number') {
+            const range = question.numericRange || 
+              { min: question.correctAnswer - 0.01, max: question.correctAnswer + 0.01 };
+            return userAnswer >= range.min && userAnswer <= range.max;
+          }
+          return false;
+
+        default:
+          return false;
+      }
+    };
+
+    const formatAnswer = (answer: string | string[] | number | undefined) => {
+      if (!answer) return "Not answered";
+      if (Array.isArray(answer)) return answer.join(', ');
+      return answer.toString();
+    };
+
+    const isAnswerCorrect = isCorrect();
     return (
         <AccordionItem value={`item-${index}`}>
             <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-4 w-full pr-4">
-                    {isCorrect ? (
+                    {isAnswerCorrect ? (
                         <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
                     ) : (
                         <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
                     )}
-                    <span className="text-left flex-1">Question {index + 1}: {question.question}</span>
+                    <span className="text-left flex-1">
+                      {question.type} - Question {index + 1}: {question.question}
+                    </span>
                 </div>
             </AccordionTrigger>
             <AccordionContent className="px-4 pt-2 pb-4">
                 <div className="space-y-4">
-                    <p>Your answer: <span className={cn("font-semibold", isCorrect ? "text-green-600" : "text-destructive")}>{userAnswer || "Not answered"}</span></p>
-                    <p>Correct answer: <span className="font-semibold text-green-600">{question.correctAnswer}</span></p>
+                    <p>Your answer: <span className={cn("font-semibold", isAnswerCorrect ? "text-green-600" : "text-destructive")}>{formatAnswer(userAnswer)}</span></p>
+                    <p>Correct answer: <span className="font-semibold text-green-600">{formatAnswer(question.correctAnswer)}</span></p>
+                    {question.type === 'NTQ' && question.numericRange && (
+                      <p className="text-sm text-muted-foreground">
+                        Acceptable range: {question.numericRange.min} to {question.numericRange.max}
+                      </p>
+                    )}
                     <Explanation question={question} quizConfig={quizConfig} />
                 </div>
             </AccordionContent>

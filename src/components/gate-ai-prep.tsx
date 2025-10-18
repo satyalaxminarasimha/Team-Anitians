@@ -12,7 +12,7 @@
  * @exports UserAnswers - The type definition for the user's answers object.
  */
 
-import type { GenerateMCQQuestionsOutput } from "@/ai/flows/generate-mcq-questions";
+import type { Question } from '@/types/quiz.types';
 import { generateQuizAction, analyzePerformanceAction } from "@/app/actions";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Sparkles } from "lucide-react";
@@ -34,6 +34,7 @@ import {
 import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,8 +65,8 @@ const quizConfigSchema = z.object({
 });
 
 export type QuizConfig = z.infer<typeof quizConfigSchema>;
-export type Question = GenerateMCQQuestionsOutput["mcqQuestions"][0] & { timeTaken?: number; topic?: string };
-export type UserAnswers = Record<number, string>;
+import type { Question } from '@/types/quiz.types';
+export type UserAnswers = Record<number, string | string[] | number>;
 
 /**
  * @component GateAiPrep
@@ -110,8 +111,30 @@ export default function GateAiPrep() {
   const handleQuizSubmit = async (answers: UserAnswers, finalQuestionsState: Question[], finalTotalTime: number) => {
     let correctCount = 0;
     finalQuestionsState.forEach((q, index) => {
-      if (q.correctAnswer === answers[index]) {
-        correctCount++;
+      const userAnswer = answers[index];
+      const correctAnswer = q.correctAnswer;
+
+      switch (q.type) {
+        case 'MCQ':
+          if (userAnswer === correctAnswer) correctCount++;
+          break;
+
+        case 'MSQ':
+          if (Array.isArray(userAnswer) && Array.isArray(correctAnswer)) {
+            const isCorrect = 
+              userAnswer.length === correctAnswer.length &&
+              userAnswer.every(ans => correctAnswer.includes(ans)) &&
+              correctAnswer.every(ans => userAnswer.includes(ans));
+            if (isCorrect) correctCount++;
+          }
+          break;
+
+        case 'NTQ':
+          if (typeof userAnswer === 'number' && typeof correctAnswer === 'number') {
+            const range = q.numericRange || { min: correctAnswer - 0.01, max: correctAnswer + 0.01 };
+            if (userAnswer >= range.min && userAnswer <= range.max) correctCount++;
+          }
+          break;
       }
     });
     
@@ -560,6 +583,81 @@ function QuizSession({
       Hard: "border-red-500",
   };
 
+  const renderQuestionInput = () => {
+    switch (question.type) {
+      case 'MCQ':
+        return (
+          <RadioGroup onValueChange={handleOptionChange} value={answers[currentQ]} className="space-y-4">
+            {question.options?.map((option, index) => (
+              <FormItem key={index} className="flex items-center space-x-3 space-y-0">
+                <FormControl>
+                  <RadioGroupItem value={option} id={`q${currentQ}-o${index}`} />
+                </FormControl>
+                <Label htmlFor={`q${currentQ}-o${index}`} className="font-normal text-lg cursor-pointer flex-1 p-4 hover:bg-muted/50 rounded-lg transition-colors">
+                  {option}
+                </Label>
+              </FormItem>
+            ))}
+          </RadioGroup>
+        );
+
+      case 'MSQ':
+        return (
+          <div className="space-y-4">
+            {question.options?.map((option, index) => (
+              <FormItem key={index} className="flex items-center space-x-3 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    id={`q${currentQ}-o${index}`}
+                    checked={answers[currentQ]?.includes(option)}
+                    onCheckedChange={(checked) => {
+                      const currentAnswers = answers[currentQ] ? [...answers[currentQ]] : [];
+                      if (checked) {
+                        currentAnswers.push(option);
+                      } else {
+                        const index = currentAnswers.indexOf(option);
+                        if (index > -1) currentAnswers.splice(index, 1);
+                      }
+                      setAnswers({ ...answers, [currentQ]: currentAnswers });
+                    }}
+                  />
+                </FormControl>
+                <Label htmlFor={`q${currentQ}-o${index}`} className="font-normal text-lg cursor-pointer flex-1 p-4 hover:bg-muted/50 rounded-lg transition-colors">
+                  {option}
+                </Label>
+              </FormItem>
+            ))}
+          </div>
+        );
+
+      case 'NTQ':
+        return (
+          <div className="space-y-4">
+            <FormItem>
+              <FormControl>
+                <Input
+                  type="number"
+                  step="any"
+                  placeholder="Enter your answer"
+                  className="text-lg p-4"
+                  value={answers[currentQ] || ''}
+                  onChange={(e) => handleOptionChange(e.target.value)}
+                />
+              </FormControl>
+              {question.numericRange && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Answer should be between {question.numericRange.min} and {question.numericRange.max}
+                </p>
+              )}
+            </FormItem>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-background z-50">
       <div className="container mx-auto h-screen max-w-4xl py-8 px-4 flex flex-col">
@@ -570,7 +668,14 @@ function QuizSession({
           )}>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle className="font-headline text-2xl">Question {currentQ + 1} of {questions.length}</CardTitle>
+                <div>
+                  <CardTitle className="font-headline text-2xl">Question {currentQ + 1} of {questions.length}</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {question.type === 'MCQ' ? 'Single Correct Answer' : 
+                     question.type === 'MSQ' ? 'Multiple Correct Answers' : 
+                     'Numerical Answer'}
+                  </p>
+                </div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive">Quit Quiz</Button>
@@ -596,18 +701,7 @@ function QuizSession({
                 <p className="text-xl font-medium">{question.question}</p>
               </div>
               <div className="flex-1">
-                <RadioGroup onValueChange={handleOptionChange} value={answers[currentQ]} className="space-y-4">
-                  {question.options.map((option, index) => (
-                    <FormItem key={index} className="flex items-center space-x-3 space-y-0">
-                        <FormControl>
-                            <RadioGroupItem value={option} id={`q${currentQ}-o${index}`} />
-                        </FormControl>
-                        <Label htmlFor={`q${currentQ}-o${index}`} className="font-normal text-lg cursor-pointer flex-1 p-4 hover:bg-muted/50 rounded-lg transition-colors">
-                            {option}
-                        </Label>
-                    </FormItem>
-                  ))}
-                </RadioGroup>
+                {renderQuestionInput()}
               </div>
             </CardContent>
             <CardFooter className="flex justify-between mt-auto">
