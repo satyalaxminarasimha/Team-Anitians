@@ -56,8 +56,8 @@ export function Header() {
   const showNav = !pathname.includes("/login") && !pathname.includes("/register");
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 max-w-screen-2xl items-center">
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-custom-sm">
+      <div className="container flex h-16 max-w-screen-2xl items-center">
         {/* Left Side: Mobile Menu and Desktop Nav */}
         <div className="flex flex-1 justify-start">
           {showNav && (
@@ -111,19 +111,22 @@ export function Header() {
               </div>
 
               {/* Desktop Navigation */}
-              <nav className="hidden items-center gap-4 text-sm lg:flex lg:gap-6">
+              <nav className="hidden items-center gap-1 text-sm lg:flex lg:gap-2">
                 {navItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "transition-colors hover:text-foreground/80",
+                      "relative px-3 py-2 rounded-lg transition-all duration-200 hover:bg-primary/10 hover:text-primary",
                       pathname === item.href
-                        ? "text-foreground"
-                        : "text-foreground/60"
+                        ? "text-primary bg-primary/10 font-medium"
+                        : "text-foreground/70 hover:text-primary"
                     )}
                   >
                     {item.label}
+                    {pathname === item.href && (
+                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></div>
+                    )}
                   </Link>
                 ))}
               </nav>
@@ -133,9 +136,12 @@ export function Header() {
 
         {/* Center: Logo */}
         <div className="flex flex-1 justify-center">
-          <Link href="/" className="flex items-center space-x-2">
-            <BrainCircuit className="h-6 w-6 text-primary" />
-            <span className="font-bold font-headline sm:inline-block">
+          <Link href="/" className="flex items-center space-x-3 group">
+            <div className="relative">
+              <BrainCircuit className="h-7 w-7 text-primary transition-transform group-hover:scale-110" />
+              <div className="absolute -inset-1 bg-primary/20 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            </div>
+            <span className="font-bold font-headline text-lg sm:inline-block bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
               Exam AI Prep
             </span>
           </Link>
@@ -152,11 +158,11 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="secondary"
-                  className="relative h-8 w-8 rounded-full"
+                  className="relative h-9 w-9 rounded-full hover:scale-105 transition-transform shadow-custom-sm"
                 >
-                  <Avatar className="h-8 w-8">
+                  <Avatar className="h-9 w-9 ring-2 ring-primary/20">
                     <AvatarImage src={user.profilePicture || undefined} alt={user.name} />
-                    <AvatarFallback>
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-purple-600 text-primary-foreground font-semibold">
                       {user.name?.[0].toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -187,7 +193,7 @@ export function Header() {
           ) : (
             // Show login button if not logged in.
             showNav && (
-              <Button asChild variant="outline" className="hidden sm:flex">
+              <Button asChild variant="outline" className="hidden sm:flex hover:scale-105 transition-transform shadow-custom-sm">
                 <Link href="/login">Login</Link>
               </Button>
             )

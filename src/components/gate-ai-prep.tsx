@@ -45,7 +45,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useQuizHistory } from "@/hooks/use-quiz-history";
 import { examMap } from "@/lib/syllabus";
-import { useAuth } from "@/hooks/use-auth.tsx";
+import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import { ResultItem } from "@/components/quiz-result-item";
 import { useRouter } from "next/navigation";
@@ -64,7 +64,7 @@ const quizConfigSchema = z.object({
 });
 
 export type QuizConfig = z.infer<typeof quizConfigSchema>;
-export type Question = GenerateMCQQuestionsOutput["mcqQuestions"][0] & { timeTaken?: number };
+export type Question = GenerateMCQQuestionsOutput["mcqQuestions"][0] & { timeTaken?: number; topic?: string };
 export type UserAnswers = Record<number, string>;
 
 /**
@@ -299,29 +299,33 @@ function QuizConfigForm({
   };
 
   return (
-    <div className="container mx-auto max-w-5xl py-8 px-4 sm:px-6 lg:px-8">
-       <div className="text-center mb-12">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight lg:text-5xl font-headline">
-          Create Your Practice Quiz
-        </h1>
-        <p className="mt-4 text-lg sm:text-xl text-muted-foreground">
-          Select your exam and customize the quiz to focus on your preparation needs.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+      <div className="container mx-auto max-w-5xl py-8 px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12 animate-fade-in">
+          <div className="relative">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight lg:text-5xl font-headline bg-gradient-to-r from-primary via-purple-600 to-primary bg-clip-text text-transparent">
+              Create Your Practice Quiz
+            </h1>
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-purple-600/20 rounded-lg blur-sm opacity-50"></div>
+          </div>
+          <p className="mt-4 text-lg sm:text-xl text-muted-foreground animate-slide-up">
+            Select your exam and customize the quiz to focus on your preparation needs.
+          </p>
+        </div>
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <Card className="shadow-lg border-2 border-primary/20">
-          <CardContent className="space-y-8 pt-6">
+        <Card className="shadow-custom-xl border-0 bg-card/80 backdrop-blur-sm animate-scale-in">
+          <CardContent className="space-y-8 pt-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                <FormField
                 control={form.control}
                 name="exam"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Select Exam</FormLabel>
+                    <FormLabel className="text-sm font-medium">Select Exam</FormLabel>
                     <Select onValueChange={handleExamChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="h-12 border-2 focus:border-primary transition-colors">
                           <SelectValue placeholder="Select your exam" />
                         </SelectTrigger>
                       </FormControl>
@@ -341,10 +345,10 @@ function QuizConfigForm({
                   name="engineeringStream"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Stream / Subject</FormLabel>
+                      <FormLabel className="text-sm font-medium">Stream / Subject</FormLabel>
                       <Select onValueChange={handleStreamChange} value={field.value} disabled={!streamsForSelectedExam}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-12 border-2 focus:border-primary transition-colors">
                             <SelectValue placeholder="Select your stream" />
                           </SelectTrigger>
                         </FormControl>
@@ -366,10 +370,10 @@ function QuizConfigForm({
                     name="difficultyLevel"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Difficulty Level</FormLabel>
+                        <FormLabel className="text-sm font-medium">Difficulty Level</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="h-12 border-2 focus:border-primary transition-colors">
                             <SelectValue placeholder="Select difficulty" />
                             </SelectTrigger>
                         </FormControl>
@@ -388,9 +392,9 @@ function QuizConfigForm({
                     name="numberOfQuestions"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Number of Questions</FormLabel>
+                        <FormLabel className="text-sm font-medium">Number of Questions</FormLabel>
                         <FormControl>
-                        <Input type="number" min="1" max="100" {...field} />
+                        <Input type="number" min="1" max="100" {...field} className="h-12 border-2 focus:border-primary transition-colors" />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
@@ -402,15 +406,16 @@ function QuizConfigForm({
               name="syllabus"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Syllabus Topics</FormLabel>
+                  <FormLabel className="text-sm font-medium">Syllabus Topics</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="The syllabus for the selected stream will appear here. You can edit it to focus on specific topics."
                       {...field}
                       rows={8}
+                      className="border-2 focus:border-primary transition-colors resize-none"
                     />
                   </FormControl>
-                  <FormDescription>
+                  <FormDescription className="text-sm">
                     You can edit the syllabus to concentrate on specific areas for your quiz.
                   </FormDescription>
                   <FormMessage />
@@ -418,24 +423,30 @@ function QuizConfigForm({
               )}
             />
           </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={form.formState.isSubmitting} size="lg">
+          <CardFooter className="px-8 pb-8">
+            <Button 
+              type="submit" 
+              disabled={form.formState.isSubmitting} 
+              size="lg"
+              className="w-full h-12 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 shadow-custom-md hover:shadow-custom-lg transition-all duration-200 hover:scale-[1.02]"
+            >
               {form.formState.isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating Quiz...
+                </div>
               ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
                   Generate Quiz
-                </>
+                </div>
               )}
             </Button>
           </CardFooter>
         </Card>
       </form>
     </FormProvider>
+      </div>
     </div>
   );
 }
@@ -446,10 +457,28 @@ function QuizConfigForm({
  */
 function LoadingState() {
     return (
-        <div className="flex flex-col items-center justify-center rounded-lg border bg-card text-card-foreground shadow-lg p-12 min-h-[400px]">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-            <h2 className="text-2xl font-semibold font-headline text-center">Generating Your Quiz...</h2>
-            <p className="text-muted-foreground text-center mt-2">Our AI is crafting questions just for you. Please wait a moment.</p>
+        <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center px-4">
+          <div className="w-full max-w-md">
+            <Card className="shadow-custom-xl border-0 bg-card/80 backdrop-blur-sm animate-scale-in">
+              <CardContent className="flex flex-col items-center justify-center p-12">
+                <div className="relative mb-8">
+                  <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                  <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-purple-600 rounded-full animate-spin" style={{animationDirection: 'reverse', animationDuration: '1.5s'}}></div>
+                </div>
+                <h2 className="text-2xl font-bold text-center mb-4 bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                  Generating Your Quiz
+                </h2>
+                <p className="text-muted-foreground text-center mb-6">
+                  Our AI is crafting personalized questions just for you. This may take a moment...
+                </p>
+                <div className="flex space-x-2">
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
     );
 }
@@ -627,15 +656,16 @@ function QuizResults({
     if (historyId && user && quizConfig) {
       const analyze = async () => {
         setIsAnalyzing(true);
-        const quizResults = questions.map((q, i) => ({
-            question: q.question,
-            userAnswer: userAnswers[i],
-            correctAnswer: q.correctAnswer,
-            isCorrect: q.correctAnswer === userAnswers[i],
-            timeTaken: q.timeTaken || 0,
-            difficulty: q.difficulty,
-            topic: q.topic || 'General',
-        }));
+    const quizResults = questions.map((q, i) => ({
+      number: i + 1,
+      question: q.question,
+      userAnswer: userAnswers[i],
+      correctAnswer: q.correctAnswer,
+      isCorrect: q.correctAnswer === userAnswers[i],
+      timeTaken: q.timeTaken || 0,
+      difficulty: q.difficulty,
+      topic: q.topic || 'General',
+    }));
 
         const payload = {
             exam: quizConfig.exam,

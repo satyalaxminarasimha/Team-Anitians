@@ -43,7 +43,7 @@ User's Inferred Learning Style: {{{inferredLearningStyle}}} (Tailor your feedbac
 Here are the quiz results:
 {{#each quizResults}}
 ---
-Question {{add @index 1}}: {{{question}}}
+Question {{number}}: {{{question}}}
 Topic: {{{topic}}}
 Difficulty: {{{difficulty}}}
 Time Taken: {{{timeTaken}}} seconds
