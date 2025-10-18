@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { chatWithAIAction, getChatHistoryAction, saveChatHistoryAction } from "../actions";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent } from "@/components/ui/card";
 
 // Schema for the chat input form.
 const formSchema = z.object({
@@ -149,11 +150,38 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-4rem)]">
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full" ref={scrollAreaRef}>
-          <div className="container mx-auto max-w-3xl py-8 px-4 sm:px-6 lg:px-8">
-            {messages.length === 0 && !isLoading ? (
+    <div className="flex h-[calc(100dvh-4rem)]">
+      {/* Left sidebar with history */}
+      <div className="w-80 border-r bg-muted/30">
+        <div className="p-4 border-b">
+          <h2 className="font-semibold">Chat History</h2>
+        </div>
+        <ScrollArea className="h-[calc(100vh-9rem)]">
+          <div className="p-4 space-y-4">
+            {messages.map((msg, idx) => (
+              <Card key={idx} className={cn(
+                "cursor-pointer hover:bg-muted transition-colors",
+                msg.role === "user" ? "border-primary/20" : "border-accent/20"
+              )}>
+                <CardContent className="p-3">
+                  <p className="text-sm truncate">{msg.content}</p>
+                </CardContent>
+              </Card>
+            ))}
+            {messages.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center p-4">
+                No chat history yet
+              </p>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+
+      {/* Main chat area */}
+      <div className="flex-1 flex flex-col">
+        <ScrollArea className="flex-1" ref={scrollAreaRef}>
+          <div className="container max-w-3xl py-8 px-4 sm:px-6 lg:px-8">
+            {messages.length === 0 ? (
               <WelcomeScreen />
             ) : (
               <div className="space-y-6">
@@ -165,35 +193,35 @@ export default function ChatPage() {
             )}
           </div>
         </ScrollArea>
-      </div>
 
-      <div className="bg-background border-t">
-        <div className="container mx-auto max-w-3xl py-4 px-4 sm:px-6 lg:px-8">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center gap-4">
-              <FormField
-                control={form.control}
-                name="message"
-                render={({ field }) => (
-                  <FormItem className="flex-1">
-                    <FormControl>
-                      <Input
-                        placeholder="Ask anything about your exam subjects..."
-                        autoComplete="off"
-                        {...field}
-                        disabled={isPending}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" size="icon" disabled={isPending}>
-                <SendHorizonal className="h-5 w-5" />
-                <span className="sr-only">Send</span>
-              </Button>
-            </form>
-          </Form>
+        <div className="bg-background border-t">
+          <div className="container max-w-3xl py-4 px-4 sm:px-6 lg:px-8">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center gap-4">
+                <FormField
+                  control={form.control}
+                  name="message"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormControl>
+                        <Input
+                          placeholder="Ask anything about your exam subjects..."
+                          autoComplete="off"
+                          {...field}
+                          disabled={isPending}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" size="icon" disabled={isPending}>
+                  <SendHorizonal className="h-5 w-5" />
+                  <span className="sr-only">Send</span>
+                </Button>
+              </form>
+            </Form>
+          </div>
         </div>
       </div>
     </div>

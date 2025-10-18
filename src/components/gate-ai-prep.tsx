@@ -561,62 +561,70 @@ function QuizSession({
   };
 
   return (
-    <FormProvider {...formMethods}>
-      <Card className={cn(
-          "shadow-lg border-2",
-          difficultyColors[question.difficulty] || "border-transparent"
-      )}>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="font-headline text-2xl">Question {currentQ + 1} of {questions.length}</CardTitle>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive">Quit Quiz</Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure you want to quit?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Your progress will be lost and this quiz will not be saved in your history.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={onQuit} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Quit</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-          <Progress value={progress} className="mt-2" />
-        </CardHeader>
-        <CardContent className="min-h-[250px]">
-          <p className="text-lg font-medium mb-6">{question.question}</p>
-          <RadioGroup onValueChange={handleOptionChange} value={answers[currentQ]}>
-            {question.options.map((option, index) => (
-              <FormItem key={index} className="flex items-center space-x-3 space-y-0">
-                  <FormControl>
-                      <RadioGroupItem value={option} id={`q${currentQ}-o${index}`} />
-                  </FormControl>
-                  <Label htmlFor={`q${currentQ}-o${index}`} className="font-normal text-base">
-                      {option}
-                  </Label>
-              </FormItem>
-            ))}
-          </RadioGroup>
-        </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={handleBack} disabled={currentQ === 0}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-          </Button>
-          {currentQ < questions.length - 1 ? (
-            <Button onClick={handleNext}>Next</Button>
-          ) : (
-            <Button onClick={handleSubmit} className="bg-green-600 hover:bg-green-700">Submit Quiz</Button>
-          )}
-        </CardFooter>
-      </Card>
-    </FormProvider>
+    <div className="fixed inset-0 bg-background z-50">
+      <div className="container mx-auto h-screen max-w-4xl py-8 px-4 flex flex-col">
+        <FormProvider {...formMethods}>
+          <Card className={cn(
+              "flex-1 shadow-lg border-2 flex flex-col",
+              difficultyColors[question.difficulty] || "border-transparent"
+          )}>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle className="font-headline text-2xl">Question {currentQ + 1} of {questions.length}</CardTitle>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">Quit Quiz</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure you want to quit?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Your progress will be lost and this quiz will not be saved in your history.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={onQuit} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Quit</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+              <Progress value={progress} className="mt-2" />
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col">
+              <div className="mb-8">
+                <p className="text-xl font-medium">{question.question}</p>
+              </div>
+              <div className="flex-1">
+                <RadioGroup onValueChange={handleOptionChange} value={answers[currentQ]} className="space-y-4">
+                  {question.options.map((option, index) => (
+                    <FormItem key={index} className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                            <RadioGroupItem value={option} id={`q${currentQ}-o${index}`} />
+                        </FormControl>
+                        <Label htmlFor={`q${currentQ}-o${index}`} className="font-normal text-lg cursor-pointer flex-1 p-4 hover:bg-muted/50 rounded-lg transition-colors">
+                            {option}
+                        </Label>
+                    </FormItem>
+                  ))}
+                </RadioGroup>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-between mt-auto">
+              <Button variant="outline" onClick={handleBack} disabled={currentQ === 0} size="lg">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+              </Button>
+              {currentQ < questions.length - 1 ? (
+                <Button onClick={handleNext} size="lg">Next</Button>
+              ) : (
+                <Button onClick={handleSubmit} className="bg-green-600 hover:bg-green-700" size="lg">Submit Quiz</Button>
+              )}
+            </CardFooter>
+          </Card>
+        </FormProvider>
+      </div>
+    </div>
   );
 }
 
