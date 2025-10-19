@@ -45,7 +45,13 @@ const QuizConfigSchema = new Schema({
 const QuestionSchema = new Schema({
     question: { type: String, required: true },
     options: [{ type: String, required: true }],
-    correctAnswer: { type: String, required: true },
+    correctAnswer: { 
+        type: Schema.Types.Mixed,
+        required: true,
+        set: function(v: string | string[]) {
+            return Array.isArray(v) ? v.join(', ') : v;
+        }
+    },
     difficulty: { type: String, enum: ["Easy", "Medium", "Hard"], required: true },
     topic: { type: String }, // For metadata tagging
     prerequisites: [{ type: String }], // For knowledge graph

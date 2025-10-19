@@ -46,7 +46,11 @@ const GenerateMCQQuestionsOutputSchema = z.object({
     z.object({
       question: z.string().describe('The MCQ question.'),
       options: z.array(z.string()).describe('The options for the MCQ.'),
-      correctAnswer: z.string().describe('The correct answer to the MCQ.'),
+      correctAnswer: z.union([
+        z.string(),
+        z.array(z.string())
+      ]).transform(val => Array.isArray(val) ? val.join(', ') : val)
+        .describe('The correct answer to the MCQ. Can be a single string or array of strings.'),
       difficulty: z.enum(['Easy', 'Medium', 'Hard']).describe('The difficulty level of the generated question.')
     })
   ).describe('The generated multiple-choice questions.'),
