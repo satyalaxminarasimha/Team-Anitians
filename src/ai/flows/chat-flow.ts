@@ -11,7 +11,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import type { Message } from '@/app/chat/page';
+import type { Message } from '@/types/chat.types';
 import { googleAI } from '@genkit-ai/googleai';
 
 /**

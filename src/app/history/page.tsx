@@ -11,10 +11,11 @@
  * - A list of `QuizHistoryCard` components, one for each completed quiz.
  */
 
-import { Accordion } from "@/components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useQuizHistory, type QuizHistoryItem } from "@/hooks/use-quiz-history";
-import { History as HistoryIcon, Calendar, CheckCircle, Percent, Loader2 } from "lucide-react";
+import { useQuizHistory } from '@/hooks/use-quiz-history';
+import type { QuizHistoryItem } from '@/types/quiz.types';
+import { History as HistoryIcon, Calendar, ChevronDown, CheckCircle, Percent, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -78,12 +79,12 @@ export default function HistoryPage() {
                     </CardContent>
                 </Card>
             ) : (
-                // Display the list of history cards.
-                <div className="space-y-8">
+                // Display the list of history cards in an accordion
+                <Accordion type="single" collapsible className="w-full space-y-2">
                     {history.map((quiz) => (
                         <QuizHistoryCard key={quiz.id} quiz={quiz} />
                     ))}
-                </div>
+                </Accordion>
             )}
         </div>
     );
@@ -98,31 +99,35 @@ export default function HistoryPage() {
  */
 function QuizHistoryCard({ quiz }: { quiz: QuizHistoryItem }) {
     const percentage = Math.round((quiz.score / quiz.questions.length) * 100);
+    const quizDate = new Date(quiz.date).toLocaleDateString();
 
     return (
-        <Card className="shadow-lg">
-            <CardHeader>
-                <CardTitle className="font-headline text-xl">{quiz.config.engineeringStream}</CardTitle>
-                <CardDescription>
-                    {quiz.config.exam} | {quiz.config.difficultyLevel} | {quiz.questions.length} Questions
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground mb-4">
-                    <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>{new Date(quiz.date).toLocaleDateString()}</span>
+        <AccordionItem value={quiz.id} className="border rounded-lg shadow-sm">
+            <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                <div className="flex flex-1 flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-left">
+                    <div className="space-y-1">
+                        <h3 className="font-semibold">{quiz.config.engineeringStream}</h3>
+                        <p className="text-sm text-muted-foreground">
+                            {quiz.config.exam} | {quiz.config.difficultyLevel}
+                        </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                         <CheckCircle className="h-4 w-4" />
-                        <span>{quiz.score}/{quiz.questions.length} Correct</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Percent className="h-4 w-4" />
-                        <span>{percentage}%</span>
+                    <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            <span>{quizDate}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4" />
+                            <span>{quiz.score}/{quiz.questions.length}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Percent className="h-4 w-4" />
+                            <span>{percentage}%</span>
+                        </div>
                     </div>
                 </div>
-                {/* Accordion to display each question and its result. */}
+            </AccordionTrigger>
+            <AccordionContent className="px-6 py-4">
                 <Accordion type="single" collapsible className="w-full">
                     {quiz.questions.map((q, index) => (
                         <ResultItem
@@ -134,7 +139,7 @@ function QuizHistoryCard({ quiz }: { quiz: QuizHistoryItem }) {
                         />
                     ))}
                 </Accordion>
-            </CardContent>
-        </Card>
+            </AccordionContent>
+        </AccordionItem>
     )
 }

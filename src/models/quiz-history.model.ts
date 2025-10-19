@@ -5,7 +5,7 @@
  */
 
 import mongoose, { Document, Schema, models, model } from 'mongoose';
-import type { QuizConfig, Question, UserAnswers } from '@/components/gate-ai-prep';
+import type { QuizConfig, Question } from '@/types/quiz.types';
 
 /**
  * @interface IQuizHistory
@@ -16,7 +16,7 @@ export interface IQuizHistory extends Document {
   date: Date;
   config: QuizConfig;
   questions: Question[];
-  userAnswers: UserAnswers;
+  userAnswers: (string | string[] | number | undefined)[];
   score: number;
   totalTime: number; // Total time in seconds
   performanceAnalysis?: {
@@ -45,7 +45,8 @@ const QuizConfigSchema = new Schema({
 const QuestionSchema = new Schema({
     question: { type: String, required: true },
     options: [{ type: String, required: true }],
-    correctAnswer: { type: String, required: true },
+  // correctAnswer may be a string, array of strings (MSQ) or a number (NTQ)
+  correctAnswer: { type: Schema.Types.Mixed, required: true },
     difficulty: { type: String, enum: ["Easy", "Medium", "Hard"], required: true },
     topic: { type: String }, // For metadata tagging
     prerequisites: [{ type: String }], // For knowledge graph
@@ -73,8 +74,8 @@ const QuizHistorySchema: Schema = new Schema({
   date: { type: Date, default: Date.now },
   config: { type: QuizConfigSchema, required: true },
   questions: { type: [QuestionSchema], required: true },
-  // A plain Object is used for `userAnswers` for better serialization compatibility with Next.js Server Actions.
-  userAnswers: { type: Object, of: String, required: true },
+  // Allow mixed types in userAnswers (string | string[] | number) to match frontend shapes
+  userAnswers: { type: Schema.Types.Mixed, required: true },
   score: { type: Number, required: true },
   totalTime: { type: Number, default: 0 }, // Total time for the quiz in seconds
   performanceAnalysis: { type: PerformanceAnalysisSchema },

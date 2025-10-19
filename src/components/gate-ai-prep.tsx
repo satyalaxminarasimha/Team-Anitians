@@ -12,11 +12,11 @@
  * @exports UserAnswers - The type definition for the user's answers object.
  */
 
-import type { Question } from '@/types/quiz.types';
+import type { Question, QuizConfig } from '@/types/quiz.types';
 import { generateQuizAction, analyzePerformanceAction } from "@/app/actions";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Sparkles } from "lucide-react";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useForm, type SubmitHandler, FormProvider } from "react-hook-form";
 import { z } from "zod";
 
@@ -43,6 +43,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { useQuizHistory } from "@/hooks/use-quiz-history";
 import { examMap } from "@/lib/syllabus";
@@ -60,13 +61,11 @@ const quizConfigSchema = z.object({
   exam: z.string().min(1, "Please select an exam."),
   engineeringStream: z.string().min(1, "Please select a stream or subject."),
   syllabus: z.string().min(10, "Syllabus must be at least 10 characters.").max(10000),
-  difficultyLevel: z.enum(["Easy", "Medium", "Hard"]),
+  difficultyLevel: z.enum(["Easy", "Medium", "Hard"] as const),
   numberOfQuestions: z.coerce.number().min(1).max(100),
-});
-
-export type QuizConfig = z.infer<typeof quizConfigSchema>;
-import type { Question } from '@/types/quiz.types';
-export type UserAnswers = Record<number, string | string[] | number>;
+}).strict(); // Ensure no extra properties
+type QuizFormValues = z.infer<typeof quizConfigSchema>;
+export type UserAnswers = Record<number, string | string[] | number | undefined>;
 
 /**
  * @component GateAiPrep
@@ -74,6 +73,43 @@ export type UserAnswers = Record<number, string | string[] | number>;
  * It controls which step of the process is currently active and passes props
  * down to the relevant sub-component.
  */
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Quiz error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card className="shadow-lg p-6 text-center">
+          <CardHeader>
+            <CardTitle>Something went wrong</CardTitle>
+            <CardDescription>
+              We encountered an error while running the quiz. Please try refreshing the page.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button onClick={() => window.location.reload()}>
+              Refresh Page
+            </Button>
+          </CardFooter>
+        </Card>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export default function GateAiPrep() {
   const [step, setStep] = useState<"config" | "loading" | "quiz" | "results">("config");
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -146,10 +182,12 @@ export default function GateAiPrep() {
 
     // Save the quiz to the user's history and get the ID for analysis
     if (quizConfig && user) {
+       // Convert userAnswers (sparse object) to an array matching questions length
+       const answersArray = new Array(finalQuestionsState.length).fill(undefined).map((_, idx) => answers[idx]);
        const result = await addQuizToHistory({
         date: new Date(),
         questions: finalQuestionsState,
-        userAnswers: answers,
+        userAnswers: answersArray,
         score: correctCount,
         config: quizConfig,
         totalTime: finalTotalTime,
@@ -187,7 +225,7 @@ export default function GateAiPrep() {
   const defaultStream = defaultExamData ? Array.from(defaultExamData.streams.keys())[0] : "";
   const defaultSyllabus = defaultExamData?.streams.get(defaultStream) || "";
   
-  const formMethods = useForm<QuizConfig>({
+  const formMethods = useForm<QuizFormValues>({
     resolver: zodResolver(quizConfigSchema),
     defaultValues: {
       exam: defaultExam,
@@ -199,30 +237,56 @@ export default function GateAiPrep() {
   });
 
 
-  switch (step) {
-    case "config":
-      return <QuizConfigForm onQuizStart={handleQuizStart} setStep={setStep} formMethods={formMethods} />;
-    case "loading":
-        return <LoadingState />;
-    case "quiz":
-      return <QuizSession questions={questions} onQuizSubmit={handleQuizSubmit} onQuit={handleRestart} />;
-    case "results":
-      return (
-        <QuizResults
-          questions={questions}
-          userAnswers={userAnswers}
-          score={score}
-          onRestart={handleRestart}
-          onTryAgain={handleTryAgain}
-          quizConfig={quizConfig}
-          totalTime={totalTime}
-          historyId={historyId}
-          user={user}
-        />
-      );
-    default:
-      return null;
-  }
+  return (
+    <ErrorBoundary>
+      {!user ? (
+        <Card className="shadow-lg p-6 text-center">
+          <CardHeader>
+            <CardTitle>Login Required</CardTitle>
+            <CardDescription>
+              Please log in to access the quiz system.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button onClick={() => router.push('/login')}>
+              Go to Login
+            </Button>
+          </CardFooter>
+        </Card>
+      ) : (
+        <>
+          {step === "config" && (
+            <QuizConfigForm 
+              onQuizStart={handleQuizStart} 
+              setStep={setStep} 
+              formMethods={formMethods} 
+            />
+          )}
+          {step === "loading" && <LoadingState />}
+          {step === "quiz" && questions.length > 0 && (
+            <QuizSession 
+              questions={questions} 
+              onQuizSubmit={handleQuizSubmit} 
+              onQuit={handleRestart} 
+            />
+          )}
+          {step === "results" && (
+            <QuizResults
+              questions={questions}
+              userAnswers={userAnswers}
+              score={score}
+              onRestart={handleRestart}
+              onTryAgain={handleTryAgain}
+              quizConfig={quizConfig}
+              totalTime={totalTime}
+              historyId={historyId}
+              user={user}
+            />
+          )}
+        </>
+      )}
+    </ErrorBoundary>
+  );
 }
 
 /**
@@ -237,7 +301,7 @@ function QuizConfigForm({
 }: {
   onQuizStart: (questions: Question[], config: QuizConfig) => void;
   setStep: (step: "loading" | "config") => void;
-  formMethods: ReturnType<typeof useForm<QuizConfig>>
+  formMethods: ReturnType<typeof useForm<QuizFormValues>>;
 }) {
   const { toast } = useToast();
   const [showStreamSelector, setShowStreamSelector] = useState(true);
@@ -310,7 +374,7 @@ function QuizConfigForm({
     const result = await generateQuizAction(actionPayload);
 
     if (result.success && result.data && result.data.mcqQuestions.length > 0) {
-      onQuizStart(result.data.mcqQuestions, data);
+  onQuizStart(result.data.mcqQuestions, data);
     } else {
       toast({
         variant: "destructive",
@@ -526,10 +590,21 @@ function QuizSession({
   const formMethods = useForm();
   
   // Time tracking state
-  const [quizQuestions, setQuizQuestions] = useState<Question[]>(() => questions.map(q => ({...q, timeTaken: 0})));
-  const [startTime, setStartTime] = useState(Date.now());
+  const [quizQuestions, setQuizQuestions] = useState<Question[]>(() => 
+    questions.map(q => ({...q, timeTaken: 0}))
+  );
+  const [startTime] = useState(Date.now()); // Remove setStartTime as it's not needed
   const questionStartTime = useRef(Date.now());
   const totalTimeRef = useRef(0);
+
+  // Memoize current question data
+  const currentQuestion = useMemo(() => questions[currentQ], [questions, currentQ]);
+  
+  // Memoize progress calculation
+  const progress = useMemo(() => 
+    ((currentQ + 1) / questions.length) * 100,
+    [currentQ, questions.length]
+  );
 
   // Update time taken for the current question
   const updateQuestionTime = () => {
@@ -551,8 +626,37 @@ function QuizSession({
   }, [startTime]);
 
 
-  const handleOptionChange = (value: string) => {
-    setAnswers((prev) => ({ ...prev, [currentQ]: value }));
+  const handleOptionChange = (value: string | number | string[]) => {
+    // Validate and coerce answer based on question type
+    const question = questions[currentQ];
+    let validatedValue: string | number | string[] | undefined = value;
+
+    switch (question.type) {
+      case 'MCQ':
+        validatedValue = String(value);
+        break;
+      case 'MSQ':
+        validatedValue = Array.isArray(value) ? value.map(String) : [String(value)];
+        break;
+      case 'NTQ':
+        const num = Number(value);
+        if (isNaN(num)) {
+          validatedValue = undefined;
+        } else if (question.numericRange) {
+          // Validate within range if specified
+          if (num >= (question.numericRange.min ?? -Infinity) && 
+              num <= (question.numericRange.max ?? Infinity)) {
+            validatedValue = num;
+          } else {
+            validatedValue = undefined;
+          }
+        } else {
+          validatedValue = num;
+        }
+        break;
+    }
+
+    setAnswers((prev) => ({ ...prev, [currentQ]: validatedValue }));
   };
 
   const handleNext = () => {
@@ -569,13 +673,37 @@ function QuizSession({
     }
   };
   
+  const { toast } = useToast();
+  
   const handleSubmit = () => {
-    updateQuestionTime(); // Log time for the last question
+    // Validate all answers before submission
+    const unansweredQuestions = questions.reduce((acc, _, index) => {
+      if (answers[index] === undefined) acc.push(index + 1);
+      return acc;
+    }, [] as number[]);
+
+    if (unansweredQuestions.length > 0) {
+      toast({
+        variant: "default",
+        title: "Incomplete Quiz",
+        description: `Questions ${unansweredQuestions.join(", ")} are not answered. Do you want to continue?`,
+        action: (
+          <ToastAction altText="Continue anyway" onClick={() => {
+            updateQuestionTime();
+            onQuizSubmit(answers, quizQuestions, totalTimeRef.current);
+          }}>
+            Submit Anyway
+          </ToastAction>
+        ),
+      });
+      return;
+    }
+
+    updateQuestionTime();
     onQuizSubmit(answers, quizQuestions, totalTimeRef.current);
   };
-  
-  const progress = ((currentQ + 1) / questions.length) * 100;
-  const question = questions[currentQ];
+
+  // progress and currentQuestion are memoized above (useMemo)
 
   const difficultyColors = {
       Easy: "border-green-500",
@@ -584,11 +712,11 @@ function QuizSession({
   };
 
   const renderQuestionInput = () => {
-    switch (question.type) {
+  switch (currentQuestion.type) {
       case 'MCQ':
         return (
-          <RadioGroup onValueChange={handleOptionChange} value={answers[currentQ]} className="space-y-4">
-            {question.options?.map((option, index) => (
+          <RadioGroup onValueChange={(v) => handleOptionChange(v)} value={typeof answers[currentQ] === 'string' ? (answers[currentQ] as string) : undefined} className="space-y-4">
+            {currentQuestion.options?.map((option, index) => (
               <FormItem key={index} className="flex items-center space-x-3 space-y-0">
                 <FormControl>
                   <RadioGroupItem value={option} id={`q${currentQ}-o${index}`} />
@@ -604,19 +732,21 @@ function QuizSession({
       case 'MSQ':
         return (
           <div className="space-y-4">
-            {question.options?.map((option, index) => (
+            {currentQuestion.options?.map((option, index) => (
               <FormItem key={index} className="flex items-center space-x-3 space-y-0">
                 <FormControl>
                   <Checkbox
                     id={`q${currentQ}-o${index}`}
-                    checked={answers[currentQ]?.includes(option)}
+                    checked={Array.isArray(answers[currentQ]) ? (answers[currentQ] as string[]).includes(option) : false}
                     onCheckedChange={(checked) => {
-                      const currentAnswers = answers[currentQ] ? [...answers[currentQ]] : [];
+                      const currentAnswers: string[] = Array.isArray(answers[currentQ])
+                        ? [...(answers[currentQ] as string[])]
+                        : (typeof answers[currentQ] === 'string' ? [answers[currentQ] as string] : []);
                       if (checked) {
                         currentAnswers.push(option);
                       } else {
-                        const index = currentAnswers.indexOf(option);
-                        if (index > -1) currentAnswers.splice(index, 1);
+                        const idx = currentAnswers.indexOf(option);
+                        if (idx > -1) currentAnswers.splice(idx, 1);
                       }
                       setAnswers({ ...answers, [currentQ]: currentAnswers });
                     }}
@@ -631,7 +761,7 @@ function QuizSession({
         );
 
       case 'NTQ':
-        return (
+                return (
           <div className="space-y-4">
             <FormItem>
               <FormControl>
@@ -640,13 +770,13 @@ function QuizSession({
                   step="any"
                   placeholder="Enter your answer"
                   className="text-lg p-4"
-                  value={answers[currentQ] || ''}
-                  onChange={(e) => handleOptionChange(e.target.value)}
+                  value={answers[currentQ] !== undefined ? String(answers[currentQ]) : ''}
+                  onChange={(e) => handleOptionChange(e.target.value === '' ? '' : Number(e.target.value))}
                 />
               </FormControl>
-              {question.numericRange && (
+              {currentQuestion.numericRange && (
                 <p className="text-sm text-muted-foreground mt-2">
-                  Answer should be between {question.numericRange.min} and {question.numericRange.max}
+                  Answer should be between {currentQuestion.numericRange.min} and {currentQuestion.numericRange.max}
                 </p>
               )}
             </FormItem>
@@ -662,17 +792,17 @@ function QuizSession({
     <div className="fixed inset-0 bg-background z-50">
       <div className="container mx-auto h-screen max-w-4xl py-8 px-4 flex flex-col">
         <FormProvider {...formMethods}>
-          <Card className={cn(
-              "flex-1 shadow-lg border-2 flex flex-col",
-              difficultyColors[question.difficulty] || "border-transparent"
-          )}>
+      <Card className={cn(
+        "flex-1 shadow-lg border-2 flex flex-col",
+        difficultyColors[currentQuestion.difficulty] || "border-transparent"
+      )}>
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
                   <CardTitle className="font-headline text-2xl">Question {currentQ + 1} of {questions.length}</CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {question.type === 'MCQ' ? 'Single Correct Answer' : 
-                     question.type === 'MSQ' ? 'Multiple Correct Answers' : 
+                    {currentQuestion.type === 'MCQ' ? 'Single Correct Answer' : 
+                     currentQuestion.type === 'MSQ' ? 'Multiple Correct Answers' : 
                      'Numerical Answer'}
                   </p>
                 </div>
@@ -698,7 +828,7 @@ function QuizSession({
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
               <div className="mb-8">
-                <p className="text-xl font-medium">{question.question}</p>
+                <p className="text-xl font-medium">{currentQuestion.question}</p>
               </div>
               <div className="flex-1">
                 {renderQuestionInput()}
@@ -758,31 +888,75 @@ function QuizResults({
     if (historyId && user && quizConfig) {
       const analyze = async () => {
         setIsAnalyzing(true);
-    const quizResults = questions.map((q, i) => ({
-      number: i + 1,
-      question: q.question,
-      userAnswer: userAnswers[i],
-      correctAnswer: q.correctAnswer,
-      isCorrect: q.correctAnswer === userAnswers[i],
-      timeTaken: q.timeTaken || 0,
-      difficulty: q.difficulty,
-      topic: q.topic || 'General',
-    }));
+        try {
+          const stringifyAnswer = (ans: string | string[] | number | undefined): string => {
+            if (ans === undefined || ans === null) return "";
+            if (Array.isArray(ans)) return ans.sort().join(", "); // Sort for consistent string representation
+            if (typeof ans === 'object') return JSON.stringify(ans);
+            return String(ans);
+          };
 
-        const payload = {
+          const compareAnswers = (correct: string | string[] | number, user: string | string[] | number | undefined): boolean => {
+            if (Array.isArray(correct) && Array.isArray(user)) {
+              return correct.length === user.length && 
+                     correct.every(ans => user.includes(ans)) &&
+                     user.every(ans => correct.includes(ans));
+            }
+            return String(correct) === String(user);
+          };
+
+          const quizResults = questions.map((q, i) => {
+            const userAns = userAnswers[i];
+            const correctAns = q.correctAnswer;
+            
+            return {
+              number: i + 1,
+              question: q.question,
+              userAnswer: stringifyAnswer(userAns),
+              correctAnswer: stringifyAnswer(correctAns),
+              isCorrect: compareAnswers(correctAns, userAns),
+              timeTaken: q.timeTaken || 0,
+              difficulty: q.difficulty,
+              topic: q.topic || 'General',
+              questionType: q.type,
+            };
+          });
+
+          const payload = {
             exam: quizConfig.exam,
             stream: quizConfig.engineeringStream,
             quizResults,
             inferredLearningStyle: user.inferredLearningStyle,
-        }
+            metadata: {
+              totalTime,
+              score,
+              totalQuestions: questions.length,
+            },
+          };
 
-        const result = await analyzePerformanceAction(payload, historyId);
-        if (result.success) {
+          const result = await analyzePerformanceAction(payload, historyId);
+          if (result.success) {
             setAnalysis(result.data);
-        } else {
+          } else {
             console.error("Failed to get performance analysis", result.error);
+            const { toast } = useToast();
+            toast({
+              variant: "destructive",
+              title: "Analysis Failed",
+              description: "Could not analyze your performance. Please try again.",
+            });
+          }
+        } catch (error) {
+          console.error("Error analyzing performance:", error);
+          const { toast } = useToast();
+          toast({
+            variant: "destructive",
+            title: "Analysis Error",
+            description: "An unexpected error occurred while analyzing your performance.",
+          });
+        } finally {
+          setIsAnalyzing(false);
         }
-        setIsAnalyzing(false);
       };
       analyze();
     }

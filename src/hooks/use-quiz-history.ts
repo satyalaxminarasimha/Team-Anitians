@@ -6,25 +6,10 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Question, QuizConfig, UserAnswers } from '@/components/gate-ai-prep';
+import type { QuizHistoryItem } from '@/types/quiz.types';
 import { useAuth } from './use-auth';
 import { getQuizHistoryAction, saveQuizHistoryAction } from '@/app/actions';
 import { useToast } from './use-toast';
-
-/**
- * @interface QuizHistoryItem
- * @description Defines the structure for a single item in the quiz history.
- */
-export interface QuizHistoryItem {
-  id: string;
-  date: Date | string; // Allow string for serialization from server.
-  config: QuizConfig;
-  questions: Question[];
-  userAnswers: UserAnswers;
-  score: number;
-  totalTime: number;
-  performanceAnalysis?: any;
-}
 
 /**
  * @function useQuizHistory

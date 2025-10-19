@@ -15,10 +15,11 @@ import dbConnect from "@/lib/db-connect";
 import QuizHistory from "@/models/quiz-history.model";
 import ChatHistory from "@/models/chat-history.model";
 import UserStats from "@/models/user-stats.model";
-import type { QuizHistoryItem } from "@/hooks/use-quiz-history";
+import type { QuizHistoryItem } from "@/types/quiz.types";
 import { chatWithAI } from "@/ai/flows/chat-flow";
-import type { Message } from "@/app/chat/page";
+import type { Message } from "@/types/chat.types";
 import { isSameDay, subDays } from "date-fns";
+import type { Question } from "@/types/quiz.types";
 import type { AnalyzePerformanceInput, AnalyzePerformanceOutput } from "@/app/lib/types";
 
 
@@ -95,7 +96,12 @@ export async function saveQuizHistoryAction(quizData: QuizHistoryItem, userEmail
     await dbConnect();
     
     // Save quiz history
-    const quizToSave = { ...quizData, userEmail };
+        // Ensure userAnswers is stored as an array matching the shared type
+        const normalizedUserAnswers = Array.isArray(quizData.userAnswers)
+            ? quizData.userAnswers
+            : Object.keys(quizData.userAnswers || {}).map(k => (quizData.userAnswers as any)[k]);
+
+        const quizToSave = { ...quizData, userEmail, userAnswers: normalizedUserAnswers };
     const newQuizHistory = new QuizHistory(quizToSave);
     const savedQuiz = await newQuizHistory.save();
 
@@ -154,28 +160,95 @@ export async function getQuizHistoryAction(userEmail: string) {
     try {
         await dbConnect();
         // Find all history items for the user, sorted by most recent date.
-    const history = await ((QuizHistory as any).find({ userEmail }).sort({ date: -1 }).lean().exec());
+        const history = await ((QuizHistory as any).find({ userEmail }).sort({ date: -1 }).lean().exec());
+        
+        console.log('Raw history from DB:', JSON.stringify(history, null, 2));
         
         // Convert mongoose documents to plain JavaScript objects for serialization.
-        // This is crucial for passing data from Server Components/Actions to Client Components.
         const plainHistory = history.map(item => {
-            const userAnswersObject: {[key: number]: string} = {};
-            // Mongoose Map is not directly serializable, convert it to a plain object.
-            if (item.userAnswers instanceof Map) {
-                for (const [key, value] of item.userAnswers.entries()) {
-                    userAnswersObject[Number(key)] = value;
+            const userAnswersArray: (string | string[] | number)[] = 
+              new Array(item.questions.length).fill(undefined);
+            
+            // Process each question's user answer based on the question type
+            (item.questions || []).forEach((question: Question, index: number) => {
+                // Handle both array and object formats of userAnswers
+                let rawAnswer;
+                if (Array.isArray(item.userAnswers)) {
+                    rawAnswer = item.userAnswers[index];
+                } else if (typeof item.userAnswers === 'object' && item.userAnswers !== null) {
+                    rawAnswer = item.userAnswers[String(index)];
                 }
-            } else if (typeof item.userAnswers === 'object' && item.userAnswers !== null) {
-                 // Handle case where it might already be an object from a previous conversion.
-                Object.assign(userAnswersObject, item.userAnswers);
-            }
+                
+                // Skip undefined/null answers
+                if (rawAnswer === undefined || rawAnswer === null) {
+                    return;
+                }
+
+                try {
+                    switch (question.type) {
+                        case 'MCQ':
+                            // MCQ answers should be strings
+                            userAnswersArray[index] = String(rawAnswer);
+                            break;
+
+                        case 'MSQ':
+                            // MSQ answers should be string arrays
+                            if (Array.isArray(rawAnswer)) {
+                                userAnswersArray[index] = rawAnswer.map(String);
+                            } else if (typeof rawAnswer === 'string') {
+                                // Try parsing JSON first
+                                try {
+                                    const parsed = JSON.parse(rawAnswer);
+                                    if (Array.isArray(parsed)) {
+                                        userAnswersArray[index] = parsed.map(String);
+                                    } else {
+                                        // If not an array, split by commas
+                                        userAnswersArray[index] = rawAnswer.split(',').map(s => s.trim()).filter(Boolean);
+                                    }
+                                } catch {
+                                    // If JSON parse fails, split by commas
+                                    userAnswersArray[index] = rawAnswer.split(',').map(s => s.trim()).filter(Boolean);
+                                }
+                            } else {
+                                // Single answer, wrap in array
+                                userAnswersArray[index] = [String(rawAnswer)];
+                            }
+                            break;
+
+                        case 'NTQ':
+                            // NTQ answers should be numbers
+                            const num = Number(rawAnswer);
+                            userAnswersArray[index] = Number.isNaN(num) ? 0 : num;
+                            break;
+
+                        default:
+                            // Unknown type, store as string
+                            userAnswersArray[index] = String(rawAnswer);
+                    }
+                } catch (e) {
+                    console.error(`Error processing answer for question ${index}:`, e);
+                    // On error, store as string to prevent crashes
+                    userAnswersArray[index] = String(rawAnswer);
+                }
+            });
+
+            return {
+                ...item,
+                _id: item._id.toString(),
+                date: item.date.toISOString(),
+                questions: item.questions.map(q => ({...q, timeTaken: q.timeTaken || 0})),
+                userAnswers: userAnswersArray,
+                totalTime: item.totalTime || 0,
+            };
+
+            // No additional runtime type conversion needed - we already handled types during initial processing
             
             return {
                 ...item,
                 _id: item._id.toString(), // Convert ObjectId to string
                 date: item.date.toISOString(), // Convert Date to string
                 questions: item.questions.map(q => ({...q, timeTaken: q.timeTaken || 0})),
-                userAnswers: userAnswersObject,
+                userAnswers: userAnswersArray,
                 totalTime: item.totalTime || 0,
             };
         });

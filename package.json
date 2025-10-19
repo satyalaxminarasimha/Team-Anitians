@@ -7,7 +7,7 @@
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
-  "clean:build": "node -e \"const fs=require('fs');const p='.'+require('path').sep+'next'; if(fs.existsSync(p)){fs.rmSync(p,{recursive:true,force:true});}console.log('cleaned .next');\" && next build",
+    "clean:build": "node -e \"const fs=require('fs');const p='.'+require('path').sep+'next'; if(fs.existsSync(p)){fs.rmSync(p,{recursive:true,force:true});}console.log('cleaned .next');\" && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

@@ -1,5 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Silence the @opentelemetry/instrumentation warning
+  webpack: (config) => {
+    config.ignoreWarnings = [
+      { module: /node_modules\/@opentelemetry\/instrumentation/ }
+    ];
+    return config;
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -22,6 +29,10 @@ const nextConfig = {
       },
     ],
   },
-};
 
-module.exports = nextConfig;
+  experimental: {
+    // Enable server actions which are required for the application
+    serverActions: true,
+    serverComponents: true,
+  }
+};
