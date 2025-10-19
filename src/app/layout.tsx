@@ -29,8 +29,12 @@ const sourceCodePro = Source_Code_Pro({
 // Define the global metadata for the application.
 export const metadata: Metadata = {
   title: "Exam AI Prep",
-  description:
-    "AI-powered exam preparation with tailored MCQs and explanations.",
+  description: "AI-powered exam preparation with tailored MCQs and explanations.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 /**

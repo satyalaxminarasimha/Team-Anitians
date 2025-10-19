@@ -109,10 +109,10 @@ export function ResultItem({ question, userAnswer, index, quizConfig }: {
           const correctNum = Number(question.correctAnswer);
           
           if (!isNaN(userNum) && !isNaN(correctNum)) {
-            const range = question.numericRange || 
-              { min: correctNum - 0.01, max: correctNum + 0.01 };
-            const ntqResult = userNum >= range.min && userNum <= range.max;
-            console.log('NTQ comparison:', { userNum, correctNum, range, ntqResult });
+            // Use a small epsilon value for floating point comparison
+            const epsilon = 0.0001;
+            const ntqResult = Math.abs(userNum - correctNum) <= epsilon;
+            console.log('NTQ comparison:', { userNum, correctNum, ntqResult });
             return ntqResult;
           }
           console.log('NTQ invalid numbers:', { userAnswer, correctAnswer: question.correctAnswer });
@@ -164,11 +164,7 @@ export function ResultItem({ question, userAnswer, index, quizConfig }: {
                             Status: {question.errorType || (isAnswerCorrect ? 'Correct' : 'Incorrect')}
                         </p>
                     </div>
-                    {question.type === 'NTQ' && question.numericRange && (
-                      <p className="text-sm text-muted-foreground">
-                        Acceptable range: {question.numericRange.min} to {question.numericRange.max}
-                      </p>
-                    )}
+                    {/* NTQ range information removed */}
                     <Explanation question={question} quizConfig={quizConfig} />
                 </div>
             </AccordionContent>

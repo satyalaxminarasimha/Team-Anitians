@@ -37,6 +37,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -639,20 +640,14 @@ function QuizSession({
         validatedValue = Array.isArray(value) ? value.map(String) : [String(value)];
         break;
       case 'NTQ':
-        const num = Number(value);
-        if (isNaN(num)) {
+        // Handle empty string case
+        if (value === '') {
           validatedValue = undefined;
-        } else if (question.numericRange) {
-          // Validate within range if specified
-          if (num >= (question.numericRange.min ?? -Infinity) && 
-              num <= (question.numericRange.max ?? Infinity)) {
-            validatedValue = num;
-          } else {
-            validatedValue = undefined;
-          }
-        } else {
-          validatedValue = num;
+          break;
         }
+        // Parse the number
+        const num = parseFloat(String(value));
+        validatedValue = isNaN(num) ? undefined : num;
         break;
     }
 
@@ -765,20 +760,13 @@ function QuizSession({
           <div className="space-y-4">
             <FormItem>
               <FormControl>
-                <Input
-                  type="number"
-                  step="any"
-                  placeholder="Enter your answer"
+                <NumericInput
+                  placeholder="Enter your numeric answer"
                   className="text-lg p-4"
-                  value={answers[currentQ] !== undefined ? String(answers[currentQ]) : ''}
-                  onChange={(e) => handleOptionChange(e.target.value === '' ? '' : Number(e.target.value))}
+                  value={typeof answers[currentQ] === 'number' ? answers[currentQ] as number : undefined}
+                  onChange={handleOptionChange}
                 />
               </FormControl>
-              {currentQuestion.numericRange && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Answer should be between {currentQuestion.numericRange.min} and {currentQuestion.numericRange.max}
-                </p>
-              )}
             </FormItem>
           </div>
         );
